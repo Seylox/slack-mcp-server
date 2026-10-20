@@ -59,6 +59,8 @@ type Message struct {
 	FileCount     int    `json:"fileCount,omitempty"`
 	AttachmentIDs string `json:"attachmentIDs,omitempty"`
 	HasMedia      bool   `json:"hasMedia,omitempty"`
+	ReplyCount    int    `json:"replyCount,omitempty"`
+	LatestReply   string `json:"latestReply,omitempty"`
 	Cursor        string `json:"cursor"`
 }
 
@@ -1605,6 +1607,8 @@ func (ch *ConversationsHandler) convertMessagesFromHistory(ctx context.Context, 
 			FileCount:     fileCount,
 			AttachmentIDs: attachmentIDsStr,
 			HasMedia:      hasMedia,
+			ReplyCount:    msg.ReplyCount,
+			LatestReply:   msg.LatestReply,
 		})
 	}
 
