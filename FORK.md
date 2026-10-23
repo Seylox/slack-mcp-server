@@ -13,6 +13,14 @@ This fork tracks [korotovsky/slack-mcp-server](https://github.com/korotovsky/sla
 | [#338](https://github.com/korotovsky/slack-mcp-server/pull/338) | Retry and checkpoint the user cache walk | Startup survives transient Slack errors |
 | [#344](https://github.com/korotovsky/slack-mcp-server/pull/344) | gofmt-clean tree | Builds aren't stamped `-dirty` |
 
+## Fork-only additions
+
+Changes that are not (yet) an upstream PR.
+
+| Change | What it adds | Why |
+|---|---|---|
+| `drafts_create`, `drafts_list` tools | Save a message as a draft in the user's composer, and list unsent drafts. `drafts_create` is opt-in via `SLACK_MCP_DRAFT_TOOL`. Text is Slack mrkdwn, converted to `rich_text` | An agent prepares a message, a human edits and sends it. Requested upstream in [#246](https://github.com/korotovsky/slack-mcp-server/issues/246) |
+
 ## Build
 
 There is no npm package for this fork. Build from source:

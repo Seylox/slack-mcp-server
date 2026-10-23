@@ -253,6 +253,32 @@ List the threads you are subscribed to — Slack's "Threads" view — newest act
 
 - **Returns:** CSV with columns `Channel`, `ChannelID`, `ThreadTs`, `RootUser`, `RootTime`, `RootText`, `ReplyCount`, `UnreadReplies`, `LatestReplyTime`, `LastRead`, `Replies`, `Cursor`.
 
+### 20. drafts_create
+Save a message as a draft in your Slack composer, without sending it. The draft waits in that conversation's message box and in Slack's "Drafts & sent" view, where you edit and send it yourself. Useful when an agent should prepare a message but a human decides what goes out.
+
+> **Note:** Creating drafts is disabled by default. To enable it, set the `SLACK_MCP_DRAFT_TOOL` environment variable (same channel syntax as `SLACK_MCP_ADD_MESSAGE_TOOL`), or list `drafts_create` in `SLACK_MCP_ENABLED_TOOLS`. Enabling posting does not enable drafting, and the reverse. This tool requires browser session tokens (`xoxc`/`xoxd`). It uses Slack's internal `drafts.create` API, which the Slack clients use but Slack does not document.
+
+> **Note:** Each call creates a new draft, even when the conversation already has one, so calling it twice leaves two drafts. If Slack refuses with `attached_draft_exists`, send, edit or delete the existing draft in Slack first.
+
+- **Parameters:**
+  - `channel_id` (string, required): ID of the channel in format `Cxxxxxxxxxx` or its name starting with `#...` or `@...` (e.g., `#general`, `@username`).
+  - `thread_ts` (string, optional): Timestamp of the thread's parent message (`1234567890.123456`) to draft a thread reply.
+  - `reply_broadcast` (boolean, default `false`): For thread replies, also send the reply to the channel.
+  - `text` (string): Draft text in Slack mrkdwn, the markup of Slack messages (not Markdown). Supported: `*bold*`, `_italic_`, `~strike~`, `` `code` ``, ` ```code blocks``` `, `>` quotes, `:emoji:` (with `::skin-tone-N:`), `<@U123>`, `<#C123>`, `<!subteam^S123>`, `<!here>`, `<!channel>`, `<!everyone>`, `<https://example.com|link text>`. Lines starting with `•`, `-`, `*` or `1.` become lists; `◦`, `▪` or leading spaces (four per level) nest them. It is converted to the `rich_text` blocks the composer uses.
+  - `blocks` (string or array, optional): Raw Slack `rich_text` blocks as a JSON array, for exact control. Takes precedence over `text`. Other block types are rejected, because drafts hold composer content.
+
+- **Returns:** The draft ID and where the draft waits.
+
+### 21. drafts_list
+List your unsent Slack drafts with their destination and text.
+
+> **Note:** This tool requires browser session tokens (`xoxc`/`xoxd`). It is not available with standard OAuth (`xoxp`) or bot (`xoxb`) tokens.
+
+- **Parameters:**
+  - `limit` (number, default `50`, max `100`): Maximum number of drafts to fetch.
+
+- **Returns:** CSV with columns `DraftID`, `ChannelID`, `ChannelName`, `ThreadTs`, `DateCreated`, `DateScheduled`, `Text` (the draft as Slack mrkdwn). Sent and deleted drafts are left out.
+
 ## Resources
 
 The Slack MCP Server exposes two special directory resources for easy access to workspace metadata:
@@ -309,12 +335,13 @@ Fetches a CSV directory of all users in the workspace.
 | `SLACK_MCP_ADD_MESSAGE_UNFURLING` | No        | `nil`                     | Enable to let Slack unfurl posted links or set comma-separated list of domains e.g. `github.com,slack.com` to whitelist unfurling only for them. If text contains whitelisted and unknown domain unfurling will be disabled for security reasons.                                         |
 | `SLACK_MCP_REACTION_TOOL`        | No        | `nil`                     | Enable `reactions_add` and `reactions_remove` tools by setting to `true` for all channels, a comma-separated list of channel IDs to whitelist specific channels, or use `!` before a channel ID to allow all except specified ones. If empty, the tools are only registered when explicitly listed in `SLACK_MCP_ENABLED_TOOLS`. |
 | `SLACK_MCP_ATTACHMENT_TOOL`      | No        | `nil`                     | Enable the `attachment_get_data` tool by setting to `true`, `1`, or `yes`. Does not support channel-level restrictions. If empty, the tool is only registered when explicitly listed in `SLACK_MCP_ENABLED_TOOLS`. |
+| `SLACK_MCP_DRAFT_TOOL`           | No        | `nil`                     | Enable the `drafts_create` tool by setting to `true` for all channels, a comma-separated list of channel IDs to whitelist specific channels, or use `!` before a channel ID to allow all except specified ones. If empty, the tool is only registered when explicitly listed in `SLACK_MCP_ENABLED_TOOLS`. Requires `xoxc`/`xoxd` tokens. |
 | `SLACK_MCP_MARK_TOOL`             | No        | `nil`                     | Enable the `conversations_mark` tool by setting to `true` or `1`. Disabled by default to prevent accidental marking of messages as read.                                                                                                                                                  |
 | `SLACK_MCP_USERS_CACHE`           | No        | `~/Library/Caches/slack-mcp-server/users_cache.json` (macOS)<br>`~/.cache/slack-mcp-server/users_cache.json` (Linux)<br>`%LocalAppData%/slack-mcp-server/users_cache.json` (Windows) | Path to the users cache file. Used to cache Slack user information to avoid repeated API calls on startup. |
 | `SLACK_MCP_CHANNELS_CACHE`        | No        | `~/Library/Caches/slack-mcp-server/channels_cache_v2.json` (macOS)<br>`~/.cache/slack-mcp-server/channels_cache_v2.json` (Linux)<br>`%LocalAppData%/slack-mcp-server/channels_cache_v2.json` (Windows) | Path to the channels cache file. Used to cache Slack channel information to avoid repeated API calls on startup. |
 | `SLACK_MCP_LOG_LEVEL`             | No        | `info`                    | Log-level for stdout or stderr. Valid values are: `debug`, `info`, `warn`, `error`, `panic` and `fatal`                                                                                                                                                                                   |
 | `SLACK_MCP_GOVSLACK`              | No        | `nil`                     | Set to `true` to enable [GovSlack](https://slack.com/solutions/govslack) mode. Routes API calls to `slack-gov.com` endpoints instead of `slack.com` for FedRAMP-compliant government workspaces.                                                                                          |
-| `SLACK_MCP_ENABLED_TOOLS`         | No        | `nil`                     | Comma-separated list of tools to register. If empty, all read-only tools and usergroups tools are registered; write tools (`conversations_add_message`, `reactions_add`, `reactions_remove`, `attachment_get_data`) require their specific env var OR must be explicitly listed here. When a write tool is listed here, it's enabled without channel restrictions. Available tools: `conversations_history`, `conversations_replies`, `conversations_add_message`, `reactions_add`, `reactions_remove`, `attachment_get_data`, `conversations_search_messages`, `channels_list`, `usergroups_list`, `usergroups_me`, `usergroups_create`, `usergroups_update`, `usergroups_users_update`. |
+| `SLACK_MCP_ENABLED_TOOLS`         | No        | `nil`                     | Comma-separated list of tools to register. If empty, all read-only tools and usergroups tools are registered; write tools (`conversations_add_message`, `reactions_add`, `reactions_remove`, `attachment_get_data`, `drafts_create`) require their specific env var OR must be explicitly listed here. When a write tool is listed here, it's enabled without channel restrictions. Available tools: `conversations_history`, `conversations_replies`, `conversations_add_message`, `reactions_add`, `reactions_remove`, `attachment_get_data`, `conversations_search_messages`, `channels_list`, `usergroups_list`, `usergroups_me`, `usergroups_create`, `usergroups_update`, `usergroups_users_update`, `drafts_create`, `drafts_list`. |
 
 *You need one of: `xoxp` (user), `xoxb` (bot), or both `xoxc`/`xoxd` tokens for authentication.
 
