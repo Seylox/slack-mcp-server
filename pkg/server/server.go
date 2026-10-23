@@ -48,6 +48,8 @@ const (
 	ToolSavedUpdate                 = "saved_update"
 	ToolSavedClearCompleted         = "saved_clear_completed"
 	ToolConversationsThreads        = "conversations_threads"
+	ToolDraftsCreate                = "drafts_create"
+	ToolDraftsList                  = "drafts_list"
 )
 
 var ValidToolNames = []string{
@@ -74,6 +76,8 @@ var ValidToolNames = []string{
 	ToolSavedUpdate,
 	ToolSavedClearCompleted,
 	ToolConversationsThreads,
+	ToolDraftsCreate,
+	ToolDraftsList,
 }
 
 func ValidateEnabledTools(tools []string) error {
@@ -630,6 +634,48 @@ func NewMCPServer(provider *provider.ApiProvider, logger *zap.Logger, enabledToo
 				mcp.WithTitleAnnotation("Clear Completed Saved Items"),
 				mcp.WithDestructiveHintAnnotation(true),
 			), savedHandler.SavedClearCompletedHandler)
+		}
+	}
+
+	// Register draft tools — drafts in the user's composer, never sent by the server.
+	// Requires browser session tokens (xoxc/xoxd); not available for bot or OAuth tokens.
+	if !provider.IsBotToken() && !provider.IsOAuth() {
+		draftsHandler := handler.NewDraftsHandler(provider, logger, conversationsHandler)
+
+		if shouldAddTool(ToolDraftsCreate, enabledTools, "SLACK_MCP_DRAFT_TOOL") {
+			s.AddTool(mcp.NewTool(ToolDraftsCreate,
+				mcp.WithDescription("Save a message as a draft in the user's Slack composer, without sending it. The user finds it in that conversation's message box and in Slack's 'Drafts & sent' view, edits it and sends it. Each call creates a new draft, even when the conversation already has one. Requires browser session tokens (xoxc/xoxd)."),
+				mcp.WithTitleAnnotation("Create Draft"),
+				mcp.WithDestructiveHintAnnotation(false),
+				mcp.WithString("channel_id",
+					mcp.Required(),
+					mcp.Description("ID of the channel in format Cxxxxxxxxxx or its name starting with #... or @... aka #general or @username_dm."),
+				),
+				mcp.WithString("thread_ts",
+					mcp.Description("Timestamp of the thread's parent message (1234567890.123456) to draft a thread reply. Optional."),
+				),
+				mcp.WithBoolean("reply_broadcast",
+					mcp.Description("For thread replies: also send the reply to the channel. Default false."),
+				),
+				mcp.WithString("text",
+					mcp.Description("Draft text in Slack mrkdwn, the markup of Slack messages (not Markdown): *bold*, _italic_, ~strike~, `code`, ```code blocks```, > quotes, :emoji:, <@U123> users, <#C123> channels, <!subteam^S123> user groups, <!here>, <https://example.com|link text>. Lines starting with •, -, * or 1. become lists; ◦ or leading spaces (4 per level) nest them."),
+				),
+				mcp.WithString("blocks",
+					mcp.Description("Raw Slack rich_text blocks as a JSON array, for exact control. Takes precedence over text. Only rich_text blocks are accepted: drafts hold composer content."),
+				),
+			), draftsHandler.DraftsCreateHandler)
+		}
+
+		if shouldAddTool(ToolDraftsList, enabledTools, "") {
+			s.AddTool(mcp.NewTool(ToolDraftsList,
+				mcp.WithDescription("List the user's unsent Slack drafts with their destination and text (as Slack mrkdwn). Requires browser session tokens (xoxc/xoxd)."),
+				mcp.WithTitleAnnotation("List Drafts"),
+				mcp.WithReadOnlyHintAnnotation(true),
+				mcp.WithNumber("limit",
+					mcp.Description("Maximum number of drafts to fetch. Default 50, max 100."),
+					mcp.DefaultNumber(50),
+				),
+			), draftsHandler.DraftsListHandler)
 		}
 	}
 

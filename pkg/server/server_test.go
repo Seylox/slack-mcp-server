@@ -117,6 +117,8 @@ func TestValidToolNames(t *testing.T) {
 			ToolSavedUpdate:                 true,
 			ToolSavedClearCompleted:         true,
 			ToolConversationsThreads:        true,
+			ToolDraftsCreate:                true,
+			ToolDraftsList:                  true,
 		}
 
 		assert.Equal(t, len(expectedTools), len(ValidToolNames), "ValidToolNames should have %d tools", len(expectedTools))
@@ -150,6 +152,8 @@ func TestValidToolNames(t *testing.T) {
 		assert.Equal(t, "saved_update", ToolSavedUpdate)
 		assert.Equal(t, "saved_clear_completed", ToolSavedClearCompleted)
 		assert.Equal(t, "conversations_threads", ToolConversationsThreads)
+		assert.Equal(t, "drafts_create", ToolDraftsCreate)
+		assert.Equal(t, "drafts_list", ToolDraftsList)
 	})
 }
 
@@ -253,6 +257,34 @@ func TestShouldAddTool_WriteTool_AddMessage(t *testing.T) {
 
 		result := shouldAddTool(ToolConversationsAddMessage, []string{ToolConversationsHistory}, "SLACK_MCP_ADD_MESSAGE_TOOL")
 		assert.False(t, result, "write tool should NOT be registered when not in explicit enabledTools list")
+	})
+}
+
+func TestUnitShouldAddTool_Drafts(t *testing.T) {
+	t.Run("drafts_create is opt-in", func(t *testing.T) {
+		cleanup := setEnv("SLACK_MCP_DRAFT_TOOL", "")
+		defer cleanup()
+		assert.False(t, shouldAddTool(ToolDraftsCreate, []string{}, "SLACK_MCP_DRAFT_TOOL"), "not registered without the env var")
+		assert.True(t, shouldAddTool(ToolDraftsCreate, []string{ToolDraftsCreate}, "SLACK_MCP_DRAFT_TOOL"), "registered when listed explicitly")
+	})
+
+	t.Run("drafts_create is registered when the env var is set", func(t *testing.T) {
+		cleanup := setEnv("SLACK_MCP_DRAFT_TOOL", "C123")
+		defer cleanup()
+		assert.True(t, shouldAddTool(ToolDraftsCreate, []string{}, "SLACK_MCP_DRAFT_TOOL"))
+		assert.False(t, shouldAddTool(ToolDraftsCreate, []string{ToolDraftsList}, "SLACK_MCP_DRAFT_TOOL"), "an explicit list without it wins")
+	})
+
+	t.Run("drafts_list is read-only and on by default", func(t *testing.T) {
+		assert.True(t, shouldAddTool(ToolDraftsList, []string{}, ""))
+	})
+
+	t.Run("posting does not enable drafting", func(t *testing.T) {
+		cleanupDraft := setEnv("SLACK_MCP_DRAFT_TOOL", "")
+		defer cleanupDraft()
+		cleanupPost := setEnv("SLACK_MCP_ADD_MESSAGE_TOOL", "true")
+		defer cleanupPost()
+		assert.False(t, shouldAddTool(ToolDraftsCreate, []string{}, "SLACK_MCP_DRAFT_TOOL"))
 	})
 }
 
