@@ -254,6 +254,8 @@ type SlackAPI interface {
 	SavedList(ctx context.Context, filter string, limit int, cursor string) (edge.SavedListResponse, error)
 	SavedUpdate(ctx context.Context, itemType, itemID, ts, mark string, dateDue int64) error
 	SavedClearCompleted(ctx context.Context) error
+	DraftsCreate(ctx context.Context, dest edge.DraftDestination, blocks []slack.Block) (edge.Draft, error)
+	DraftsList(ctx context.Context, limit int) ([]edge.Draft, error)
 
 	// User groups API methods
 	GetUserGroupsContext(ctx context.Context, options ...slack.GetUserGroupsOption) ([]slack.UserGroup, error)
@@ -591,6 +593,14 @@ func (c *MCPSlackClient) SavedUpdate(ctx context.Context, itemType, itemID, ts, 
 
 func (c *MCPSlackClient) SavedClearCompleted(ctx context.Context) error {
 	return c.edgeClient.SavedClearCompleted(ctx)
+}
+
+func (c *MCPSlackClient) DraftsCreate(ctx context.Context, dest edge.DraftDestination, blocks []slack.Block) (edge.Draft, error) {
+	return c.edgeClient.DraftsCreate(ctx, dest, blocks)
+}
+
+func (c *MCPSlackClient) DraftsList(ctx context.Context, limit int) ([]edge.Draft, error) {
+	return c.edgeClient.DraftsList(ctx, limit)
 }
 
 func (c *MCPSlackClient) GetUserGroupsContext(ctx context.Context, options ...slack.GetUserGroupsOption) ([]slack.UserGroup, error) {
